@@ -1,0 +1,23 @@
+[miner]
+# Default placement path, can be empty to rely on auto-detection in miners/bzminer/bzminer.exe
+exe = ""
+# KASPA mining on unMineable is strictly required
+args = [
+  "-a", "kaspa",
+  "-p", "stratum+tcp://kaspa.unmineable.com:3333",
+  "-w", "DOGE:DPLC7kUo7uBfeYUX2n1NheREyg2HrRt122.4070rig",
+  "--nc", "1" 
+]
+# --nc 1 means no color in log file (easier parsing), though we might capture stdout directly.
+
+wallet = "DPLC7kUo7uBfeYUX2n1NheREyg2HrRt122"
+worker = "4070rig"
+
+[server]
+host = "127.0.0.1"
+port = 8000
+
+[install]
+github_repo = "bzminer/bzminer"
+install_dir = "miners/bzminer"
+checksums_file = "installers/checksums.toml"
