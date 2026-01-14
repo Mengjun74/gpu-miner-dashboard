@@ -4,7 +4,7 @@ exe = ""
 # KASPA mining on unMineable is strictly required
 args = [
   "-a", "kaspa",
-  "-p", "stratum+tcp://kaspa.unmineable.com:3333",
+  "-p", "stratum+tcp://kheavyhash.unmineable.com:3333",
   "-w", "DOGE:DPLC7kUo7uBfeYUX2n1NheREyg2HrRt122.4070rig",
   "--nc", "1" 
 ]
