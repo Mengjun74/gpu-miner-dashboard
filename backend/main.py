@@ -9,7 +9,7 @@ from pathlib import Path
 from miner_runner import MinerRunner
 
 # Load Config
-CONFIG_PATH = Path('config.toml')
+CONFIG_PATH = Path(__file__).parent / 'config.toml'
 if not CONFIG_PATH.exists():
     print("FATAL: config.toml not found.")
     sys.exit(1)
