@@ -44,11 +44,11 @@ class MinerRunner:
         # Check Pool
         pool_valid = False
         for arg in args:
-            if "kaspa.unmineable.com" in arg:
+            if "kheavyhash.unmineable.com" in arg:
                 pool_valid = True
                 break
         if not pool_valid:
-            raise ValueError("INVALID CONFIG: Pool must be kaspa.unmineable.com")
+            raise ValueError("INVALID CONFIG: Pool must be kheavyhash.unmineable.com")
 
         # Check Wallet Format
         wallet_arg = ""
@@ -92,7 +92,7 @@ class MinerRunner:
             "accepted": 0,
             "rejected": 0,
             "algo": "kaspa (kHeavyHash)", 
-            "pool": "kaspa.unmineable.com",
+            "pool": "kheavyhash.unmineable.com",
             "uptime": 0,
             "start_time": time.time()
         }
@@ -162,35 +162,65 @@ class MinerRunner:
         self.running = False
 
     def _parse_line(self, line):
-        # Simple heuristic parsing
+        # BzMiner Table Parsing
+        # | #    | a/r/i | cfg | tbs | eff | pool hr | miner hr | status |
+        # | 1:0  | 10/0/0 | ...
         
-        # 1. Accepted/Rejected Share Update
-        # Look for "Accepted share" or summary lines
-        # Many miners output stats lines periodically
-        
-        # Example check for shares
-        # Assuming log might have "Accepted" word or "A: <num>"
-        if "Accepted" in line or "A:" in line:
-            # Try to extract numbers if available in a standard format
-            # This is best-effort without running it live first
-            pass
+        if "|" in line:
+            parts = [p.strip() for p in line.split("|")]
+            if len(parts) >= 8:
+                # Share parsing
+                try:
+                    shares_str = parts[2]
+                    if "/" in shares_str:
+                        a, r, i = shares_str.split("/")
+                        # Handle "1/-/-" where - means 0 or N/A
+                        
+                        if a.isdigit():
+                            self.stats['accepted'] = int(a)
+                        
+                        # Handle rejected independently
+                        if r.isdigit():
+                             self.stats['rejected'] = int(r)
+                        elif r == '-':
+                             self.stats['rejected'] = 0
+                except:
+                    pass
 
-        # 2. Hashrate
-        # Look for "MH/s" or "GH/s"
+                # Hashrate parsing - Check both Pool HR (6) and Miner HR (7)
+                # BzMiner v23.0.4 logs: "837.37mh" or "1.07gh" (No /s)
+                found_hr = False
+                for idx in [7, 6]:
+                    try:
+                        val = parts[idx].lower()
+                        # Check for mh, gh, th, ph (with or without /s)
+                        if any(u in val for u in ["kh", "mh", "gh", "th", "ph"]):
+                            # Normalize unit
+                            clean_val = val
+                            if not clean_val.endswith("s"):
+                                clean_val += "/s" # append /s if missing (mh -> mh/s)
+                            
+                            # Format properly: "837.37mh/s" -> "837.37 MH/s"
+                            display_val = clean_val.upper()\
+                                .replace("KH/S", " KH/s")\
+                                .replace("MH/S", " MH/s")\
+                                .replace("GH/S", " GH/s")\
+                                .replace("TH/S", " TH/s")\
+                                .replace("PH/S", " PH/s")
+                                
+                            self.stats['hashrate'] = display_val
+                            found_hr = True
+                            break
+                    except:
+                        pass
+                
+        # Fallback/Supplemental: Simple regex for standard log lines if they exist
+        # "Total: 100.0 MH/s" or "Total 100.0 MH/s"
         match = re.search(r'Total:?\s*(\d+(\.\d+)?)\s*(MH/s|GH/s)', line, re.IGNORECASE)
         if match:
              self.stats['hashrate'] = f"{match.group(1)} {match.group(3)}"
 
-        # Also generic scraper for "A: x R: y" often found in miner logs
-        share_match = re.search(r'A:(\d+).*R:(\d+)', line)
-        if share_match:
-            try:
-                self.stats['accepted'] = int(share_match.group(1))
-                self.stats['rejected'] = int(share_match.group(2))
-            except:
-                pass
-                
-        # Parse official "Accepted share" lines to increment if cumulative not found
+        # "Accepted share" lines
         if "Accepted share" in line:
             self.stats['accepted'] += 1
 
@@ -204,3 +234,4 @@ class MinerRunner:
             "stats": self.stats,
             "logs": list(self.log_tail)
         }
+
