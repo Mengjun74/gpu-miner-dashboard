@@ -143,21 +143,38 @@ class MinerRunner:
         # Example lines (hypothetical based on standard miners):
         # [2024-01-01 12:00:00] [INFO] GPU0: 1000.0 MH/s, A: 10, R: 0
         
+        # Ensure logs dir exists
+        logs_dir = Path("logs")
+        logs_dir.mkdir(exist_ok=True)
+        
+        # Create log file
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        log_file_path = logs_dir / f"miner_{timestamp}.log"
+        print(f"Logging miner output to: {log_file_path.absolute()}")
+
         # Regex patterns to grab data
         # Adjust these based on actual BzMiner output
         hr_pattern = re.compile(r"(\d+(\.\d+)?) (MH|GH|TH)/s")
         shares_pattern = re.compile(r"A:\s*(\d+).*R:\s*(\d+)")
         
-        while self.running and self.process:
-            line = self.process.stdout.readline()
-            if not line and self.process.poll() is not None:
-                break
-            
-            if line:
-                clean_line = line.strip()
-                if clean_line:
-                    self.log_tail.append(clean_line)
-                    self._parse_line(clean_line)
+        try:
+            with open(log_file_path, "w", encoding="utf-8") as f:
+                while self.running and self.process:
+                    line = self.process.stdout.readline()
+                    if not line and self.process.poll() is not None:
+                        break
+                    
+                    if line:
+                        # Write to log file
+                        f.write(line)
+                        f.flush()
+
+                        clean_line = line.strip()
+                        if clean_line:
+                            self.log_tail.append(clean_line)
+                            self._parse_line(clean_line)
+        except Exception as e:
+            print(f"Error writing to log file: {e}")
         
         self.running = False
 

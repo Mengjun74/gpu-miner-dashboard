@@ -5,13 +5,15 @@ exe = ""
 args = [
   "-a", "kaspa",
   "-p", "stratum+tcp://kheavyhash.unmineable.com:3333",
-  "-w", "DOGE:DPLC7kUo7uBfeYUX2n1NheREyg2HrRt122.4070rig",
-  "--nc", "1" 
+  "-w", "DOGE:DPLC7kUo7uBfeYUX2n1NheREyg2HrRt122.5060tirig",
+  "--nc", "1",
+  "-i", "5",
 ]
+
 # --nc 1 means no color in log file (easier parsing), though we might capture stdout directly.
 
 wallet = "DPLC7kUo7uBfeYUX2n1NheREyg2HrRt122"
-worker = "4070rig"
+worker = "5060tirig"
 
 [server]
 host = "127.0.0.1"
