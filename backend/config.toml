@@ -1,23 +1,18 @@
 [miner]
-# Default placement path, can be empty to rely on auto-detection in miners/bzminer/bzminer.exe
+# Default placement path, can be empty to rely on auto-detection in miners/lolminer/lolMiner.exe
 exe = ""
-# KASPA mining on unMineable is strictly required
+# ETC mining with lolMiner
 args = [
-  "-a", "kaspa",
-  "-p", "stratum+tcp://kheavyhash.unmineable.com:3333",
-  "-w", "DOGE:DPLC7kUo7uBfeYUX2n1NheREyg2HrRt122.4070rig",
-  "--nc", "1" 
+  "--algo", "ETCHASH",
+  "--pool", "etc.2miners.com:1010",
+  "--user", "0x8b55C6A92eD1ac90eF8CAf3dc188255E13B42B88.worker"
 ]
-# --nc 1 means no color in log file (easier parsing), though we might capture stdout directly.
-
-wallet = "DPLC7kUo7uBfeYUX2n1NheREyg2HrRt122"
-worker = "4070rig"
 
 [server]
 host = "127.0.0.1"
 port = 8000
 
 [install]
-github_repo = "bzminer/bzminer"
-install_dir = "miners/bzminer"
+github_repo = "Lolliedieb/lolMiner-releases"
+install_dir = "miners/lolminer"
 checksums_file = "installers/checksums.toml"

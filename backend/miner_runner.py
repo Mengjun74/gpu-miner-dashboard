@@ -27,38 +27,10 @@ class MinerRunner:
         self.log_thread = None
 
     def _validate_config(self):
-        # Security: Enforce Kaspa and unMineable
-        args = self.config['miner']['args']
-        exe = self.config['miner'].get('exe', '')
-        
-        # Check Algo
-        if "-a" in args:
-            idx = args.index("-a")
-            if idx + 1 < len(args):
-                algo = args[idx+1].lower()
-                if algo != "kaspa" and algo != "kheavyhash":
-                     raise ValueError("INVALID CONFIG: Algorithm must be kaspa")
-        else:
-             raise ValueError("INVALID CONFIG: Algorithm not specified")
-
-        # Check Pool
-        pool_valid = False
-        for arg in args:
-            if "kheavyhash.unmineable.com" in arg:
-                pool_valid = True
-                break
-        if not pool_valid:
-            raise ValueError("INVALID CONFIG: Pool must be kheavyhash.unmineable.com")
-
-        # Check Wallet Format
-        wallet_arg = ""
-        if "-w" in args:
-             wallet_arg = args[args.index("-w")+1]
-        
-        # Simple check for DOGE: prefix
-        if not wallet_arg.startswith("DOGE:"):
-             raise ValueError("INVALID CONFIG: Wallet must start with DOGE:")
-
+        # Basic validation only. Removed strict algorithm/pool checks to allow flexibility (e.g. ETC/lolMiner).
+        args = self.config['miner'].get('args', [])
+        if not args:
+            print("Warning: No miner arguments specified.")
         return True
 
     def get_exe_path(self):
@@ -66,10 +38,20 @@ class MinerRunner:
         if user_path:
             return Path(user_path)
         
-        # Default path
+        # Default path fallback search
         project_root = Path(__file__).parent.parent
-        default_path = project_root / "miners" / "bzminer" / "bzminer.exe"
-        return default_path
+        
+        # Check lolMiner
+        lol_path = project_root / "miners" / "lolminer" / "lolMiner.exe"
+        if lol_path.exists():
+            return lol_path
+
+        # Check BzMiner
+        bz_path = project_root / "miners" / "bzminer" / "bzminer.exe"
+        if bz_path.exists():
+            return bz_path
+            
+        return project_root / "miners" / "generic_miner.exe"
 
     def start(self):
         if self.running:
@@ -91,8 +73,8 @@ class MinerRunner:
             "hashrate": "0 MH/s",
             "accepted": 0,
             "rejected": 0,
-            "algo": "kaspa (kHeavyHash)", 
-            "pool": "kheavyhash.unmineable.com",
+            "algo": "Unknown", 
+            "pool": "Unknown",
             "uptime": 0,
             "start_time": time.time()
         }
@@ -101,6 +83,7 @@ class MinerRunner:
 
         try:
             # shell=False for security, direct execution
+            print(f"Starting miner with command: {' '.join(cmd)}")
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -110,6 +93,17 @@ class MinerRunner:
             )
             self.running = True
             
+            # Populate basic stats from args for display
+            args = self.config['miner']['args']
+            if "--algo" in args:
+                try:
+                    self.stats['algo'] = args[args.index("--algo")+1]
+                except: pass
+            if "--pool" in args:
+                try:
+                    self.stats['pool'] = args[args.index("--pool")+1]
+                except: pass
+
             # Start log reader thread
             self.log_thread = threading.Thread(target=self._monitor_output)
             self.log_thread.daemon = True
@@ -139,90 +133,90 @@ class MinerRunner:
         return True, "Stopped"
 
     def _monitor_output(self):
-        # BzMiner output parsing
-        # Example lines (hypothetical based on standard miners):
-        # [2024-01-01 12:00:00] [INFO] GPU0: 1000.0 MH/s, A: 10, R: 0
+        # Ensure logs dir exists
+        logs_dir = Path("logs")
+        logs_dir.mkdir(exist_ok=True)
         
-        # Regex patterns to grab data
-        # Adjust these based on actual BzMiner output
-        hr_pattern = re.compile(r"(\d+(\.\d+)?) (MH|GH|TH)/s")
-        shares_pattern = re.compile(r"A:\s*(\d+).*R:\s*(\d+)")
-        
-        while self.running and self.process:
-            line = self.process.stdout.readline()
-            if not line and self.process.poll() is not None:
-                break
-            
-            if line:
-                clean_line = line.strip()
-                if clean_line:
-                    self.log_tail.append(clean_line)
-                    self._parse_line(clean_line)
+        # Create log file
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        log_file_path = logs_dir / f"miner_{timestamp}.log"
+        print(f"Logging miner output to: {log_file_path.absolute()}")
+
+        try:
+            with open(log_file_path, "w", encoding="utf-8") as f:
+                while self.running and self.process:
+                    line = self.process.stdout.readline()
+                    if not line and self.process.poll() is not None:
+                        break
+                    
+                    if line:
+                        # Write to log file
+                        f.write(line)
+                        f.flush()
+
+                        clean_line = line.strip()
+                        if clean_line:
+                            self.log_tail.append(clean_line)
+                            self._parse_line(clean_line)
+        except Exception as e:
+            print(f"Error writing to log file: {e}")
         
         self.running = False
 
     def _parse_line(self, line):
-        # BzMiner Table Parsing
-        # | #    | a/r/i | cfg | tbs | eff | pool hr | miner hr | status |
-        # | 1:0  | 10/0/0 | ...
+        # Strip ANSI color codes
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        clean_line = ansi_escape.sub('', line).strip()
         
-        if "|" in line:
-            parts = [p.strip() for p in line.split("|")]
-            if len(parts) >= 8:
-                # Share parsing
+        # Universal / lolMiner / BzMiner Parsing
+        
+        # 1. Accepted Shares
+        # lolMiner: "GPU 0: Share accepted (80 ms)"
+        # Generic: "Accepted share"
+        if "Share accepted" in clean_line or "Accepted share" in clean_line:
+            self.stats['accepted'] += 1
+            
+        # Table parsing for Accepted/Rejected count (lolMiner "7/0/0")
+        # GPU 0 ... 51.31 ... 7/0/0
+        if "/" in clean_line:
+             # Look for pattern like " 7/0/0 "
+             # This is a bit loose but helpful for correct totals from the table
+             m = re.search(r'\s(\d+)/(\d+)/(\d+)\s', clean_line)
+             if m and "GPU" not in clean_line: # Avoid GPU rows if we want Total, or sum them?
+                 # Actually, "Total ... 7/0/0" row is best
+                 if "Total" in clean_line:
+                     self.stats['accepted'] = int(m.group(1))
+                     self.stats['rejected'] = int(m.group(2))
+
+        # 2. Hashrate
+        # lolMiner: "Average speed (15s): 50.94 Mh/s"
+        m_speed = re.search(r'Average speed.*:\s*(\d+(\.\d+)?)\s*(Mh/s|Gh/s)', clean_line, re.IGNORECASE)
+        if m_speed:
+             self.stats['hashrate'] = f"{m_speed.group(1)} {m_speed.group(3)}"
+             return
+
+        # Check for explicit Total line in table
+        # Total ... 51.31 ...
+        if "Total" in clean_line:
+            # Look for the first float number after "Total"
+            # Total ... 51.31
+            # But be careful not to match other things. The table structure is:
+            # Total ... Hashrate ...
+            parts = clean_line.split()
+            # lolMiner Total row: Total <space> 51.31 <space> ...
+            if len(parts) > 2 and parts[0] == "Total":
                 try:
-                    shares_str = parts[2]
-                    if "/" in shares_str:
-                        a, r, i = shares_str.split("/")
-                        # Handle "1/-/-" where - means 0 or N/A
-                        
-                        if a.isdigit():
-                            self.stats['accepted'] = int(a)
-                        
-                        # Handle rejected independently
-                        if r.isdigit():
-                             self.stats['rejected'] = int(r)
-                        elif r == '-':
-                             self.stats['rejected'] = 0
+                    # changes based on table col index, but first float usually is hashrate
+                    val = float(parts[1])
+                    if val > 0: # Sanity check
+                        self.stats['hashrate'] = f"{val} Mh/s" # lolMiner is usually Mh/s for ETC
                 except:
                     pass
 
-                # Hashrate parsing - Check both Pool HR (6) and Miner HR (7)
-                # BzMiner v23.0.4 logs: "837.37mh" or "1.07gh" (No /s)
-                found_hr = False
-                for idx in [7, 6]:
-                    try:
-                        val = parts[idx].lower()
-                        # Check for mh, gh, th, ph (with or without /s)
-                        if any(u in val for u in ["kh", "mh", "gh", "th", "ph"]):
-                            # Normalize unit
-                            clean_val = val
-                            if not clean_val.endswith("s"):
-                                clean_val += "/s" # append /s if missing (mh -> mh/s)
-                            
-                            # Format properly: "837.37mh/s" -> "837.37 MH/s"
-                            display_val = clean_val.upper()\
-                                .replace("KH/S", " KH/s")\
-                                .replace("MH/S", " MH/s")\
-                                .replace("GH/S", " GH/s")\
-                                .replace("TH/S", " TH/s")\
-                                .replace("PH/S", " PH/s")
-                                
-                            self.stats['hashrate'] = display_val
-                            found_hr = True
-                            break
-                    except:
-                        pass
-                
-        # Fallback/Supplemental: Simple regex for standard log lines if they exist
-        # "Total: 100.0 MH/s" or "Total 100.0 MH/s"
-        match = re.search(r'Total:?\s*(\d+(\.\d+)?)\s*(MH/s|GH/s)', line, re.IGNORECASE)
+        # Fallback/Supplemental
+        match = re.search(r'Total:?\s*(\d+(\.\d+)?)\s*(MH/s|GH/s)', clean_line, re.IGNORECASE)
         if match:
              self.stats['hashrate'] = f"{match.group(1)} {match.group(3)}"
-
-        # "Accepted share" lines
-        if "Accepted share" in line:
-            self.stats['accepted'] += 1
 
     def get_status(self):
         if self.running:
@@ -232,6 +226,7 @@ class MinerRunner:
             "running": self.running,
             "pid": self.process.pid if self.process else None,
             "stats": self.stats,
+            # "logs": list(self.log_tail) # Sending all logs via websocket might be heavy, but fine for small tail
             "logs": list(self.log_tail)
         }
 
