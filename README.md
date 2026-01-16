@@ -1,12 +1,12 @@
 # GPU Miner Dashboard
 
-A self-hosted, web-based dashboard to manage NVIDIA GPU mining for Kaspa (KAS) via unMineable (paying out in DOGE).
+A self-hosted, web-based dashboard to manage NVIDIA GPU mining. Currently configured for **ETC (Ethereum Classic)** using **lolMiner**.
 
 ## Features
-- **Strictly KASPA**: Configured solely for kHeavyHash algorithm.
-- **Auto-Exchange**: Mines to unMineable pool to auto-convert KAS -> DOGE.
+- **ETC Mining**: Configured for ETCHASH algorithm.
+- **lolMiner Integration**: Automatically downloads and runs lolMiner.
 - **Web Dashboard**: Real-time hashrate, shares, and logs via WebSocket.
-- **Auto-Install**: Automatically downloads and verifies BzMiner release.
+- **Auto-Install**: Automatically downloads and verifies lolMiner release.
 
 ## Prerequisites
 - Windows 10/11
@@ -27,8 +27,8 @@ python -m venv venv
 # Install dependencies
 pip install -r backend/requirements.txt
 
-# Install BzMiner (Can also be done via UI later, but good to verify first)
-python installers/install_bzminer.py
+# Install lolMiner
+python installers/install_lolminer.py
 ```
 
 ### 2. Setup Frontend
@@ -56,29 +56,26 @@ npm run dev
 Dashboard available at `http://localhost:5173`.
 
 ## Configuration
-Edit `backend/config.toml` to change wallet or worker name (though defaults are set to your request):
+Edit `backend/config.toml` to change wallet or pool:
 
 ```toml
 [miner]
 args = [
-  "-a", "kaspa",
-  "-p", "stratum+tcp://kaspa.unmineable.com:3333",
-  "-w", "DOGE:YOUR_ADDRESS.WORKER_NAME", 
-  "-r", "4"
+  "--algo", "ETCHASH",
+  "--pool", "etc.2miners.com:1010",
+  "--user", "0x8b55C6A92eD1ac90eF8CAf3dc188255E13B42B88.worker" 
 ]
 ```
-**Note**: The system enforces `kaspa` and `kaspa.unmineable.com`. Changing these to other coins/pools will cause the miner to fail startup validation.
 
 ## Troubleshooting
 
-### BzMiner Download Failed
+### lolMiner Download Failed
 - Check your internet connection.
-- If GitHub is blocked, manually download the latest BzMiner Windows Zip from [GitHub Releases](https://github.com/bzminer/bzminer/releases) and extract it to `miners/bzminer/`. Ensure `bzminer.exe` is at `miners/bzminer/bzminer.exe`.
+- If GitHub is blocked, manually download the latest lolMiner Windows Zip from [GitHub Releases](https://github.com/Lolliedieb/lolMiner-releases/releases) and extract it to `miners/lolminer/`. Ensure `lolMiner.exe` is at `miners/lolminer/lolMiner.exe`.
 
 ### Windows Defender
 - Mining software is often flagged as PUA (Potentially Unwanted Application).
 - You may need to add an exclusion for the `gpu-miner-dashboard/miners` folder in Windows Security.
-- **Verify Source**: Only use the included installer which fetches from the official BzMiner GitHub repo.
 
 ### WebSocket Connection Failed
 - Ensure the backend is running on port 8000.

@@ -62,7 +62,7 @@ function App() {
     return (
         <div className="container">
             <header className="header">
-                <h1>GPU Miner Control</h1>
+                <h1>ETC Miner Dashboard</h1>
                 <div className={`status-badge ${connected ? 'online' : 'offline'}`}>
                     {connected ? 'Backend Connected' : 'Backend Disconnected'}
                 </div>
