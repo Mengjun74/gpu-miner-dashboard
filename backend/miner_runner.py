@@ -46,11 +46,6 @@ class MinerRunner:
         if lol_path.exists():
             return lol_path
 
-        # Check BzMiner
-        bz_path = project_root / "miners" / "bzminer" / "bzminer.exe"
-        if bz_path.exists():
-            return bz_path
-            
         return project_root / "miners" / "generic_miner.exe"
 
     def start(self):
@@ -168,7 +163,7 @@ class MinerRunner:
         ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
         clean_line = ansi_escape.sub('', line).strip()
         
-        # Universal / lolMiner / BzMiner Parsing
+        # Universal / lolMiner Parsing
         
         # 1. Accepted Shares
         # lolMiner: "GPU 0: Share accepted (80 ms)"

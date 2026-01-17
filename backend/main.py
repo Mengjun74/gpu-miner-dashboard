@@ -65,7 +65,7 @@ async def startup_event():
     exe_path = runner.get_exe_path()
     if not exe_path.exists():
         print(f"WARNING: Miner executable invalid at {exe_path}")
-        print("Please run: python installers/install_bzminer.py")
+        print("Please run: python installers/install_lolminer.py")
     
     asyncio.create_task(broadcast_status())
 
